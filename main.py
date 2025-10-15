@@ -56,6 +56,8 @@ def login() -> PGPKey:
             user_key = res
         case [PGPKey(), _]:
             user_key = res[0]
+        case _:
+            raise Exception("key not returned from file")
     if not user_key.is_protected:
         return user_key  # return the key if there's no password
     print("Verifying key.\n Input Password:")
