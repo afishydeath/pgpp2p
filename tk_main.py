@@ -20,12 +20,10 @@ class Header(tk.Frame):
         super().__init__(parent)
         # add widgets
         self.titleLabel = ttk.Label(self, text="Title")
-        self.barSeparator = ttk.Separator(self, orient="horizontal")
         self.loginButton = ttk.Button(self, text="Login")
 
         # add to grid
         self.titleLabel.grid(column=0, row=0)
-        self.barSeparator.grid(column=1, row=0)
         self.loginButton.grid(column=2, row=0)
 
 
