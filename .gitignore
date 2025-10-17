@@ -1,3 +1,2 @@
-shell.nix
 ./test
 *.asc
