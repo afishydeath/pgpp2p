@@ -1,3 +1,5 @@
+import threading
+import datetime as dt
 import tkinter as tk
 from tkinter import CENTER, END, TOP, messagebox, filedialog
 from tkinter import NS, NSEW, W, E, ttk
@@ -13,6 +15,7 @@ from pgpy.pgp import PGPDecryptionError
 from os import path
 import os
 import sys
+from client import Client, Message, P2PClient
 
 
 if not sys.warnoptions:
@@ -172,20 +175,32 @@ class PGPApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.pgpManager = PGPManager(self)
-        self.updaters = []
+        self.p2pClient = P2PClient()
+        self.updaters = [self.clientUpdate]
+        self.stop = threading.Event()
         # establish frames
-        self.mainFrames: dict[str, tk.Frame] = {
+        self.mainFrames = {
             "Login": Login(self, self),
             "Register": Register(self, self),
             "Messaging": Messaging(self, self),
+            "PeerToPeer": PeerToPeer(self, self),
         }
         self.currentFrame = None
         self.headerFrame = Header(self, self)
         self.statusFrame = StatusBar(self, self)
         if self.pgpManager.userKey:
+            self.p2pClient.start(
+                self.pgpManager.userKey.userids[0].name,
+                self.pgpManager.userKey.fingerprint,
+            )
             self.headerFrame.setFrame("Login")
         else:
             self.headerFrame.setFrame("Register")
+        self.bind("<Destroy>", self.kill)
+
+    def kill(self, *_):
+        self.stop.set()
+        self.p2pClient.disconnect()
 
     def changeFrame(self, new: str):
         if self.headerFrame:
@@ -205,6 +220,13 @@ class PGPApp(tk.Tk):
     def doUpdates(self):
         for callback in self.updaters:
             callback()
+
+    def clientUpdate(self):
+        assert self.pgpManager.userKey
+        self.p2pClient.start(
+            self.pgpManager.userKey.userids[0].name,
+            self.pgpManager.userKey.fingerprint,
+        )
 
     def uploadText(self, target: ttk.Entry | tk.Text):
         fname = filedialog.askopenfilename()
@@ -254,12 +276,18 @@ class Header(tk.Frame):
             text="Messaging",
             command=self.setMessaging,
         )
+        self.peerToPeerButton = ttk.Button(
+            self,
+            text="PeerToPeer",
+            command=self.setPeerToPeer,
+        )
 
         # add to grid
         self.titleLabel.grid(column=0, row=0, padx=5)
         self.loginButton.grid(column=1, row=0, padx=2)
         self.registerButton.grid(column=2, row=0, padx=2)
         self.messagingButton.grid(column=3, row=0, padx=2)
+        self.peerToPeerButton.grid(column=4, row=0, padx=2)
         self.updateVariables()
         self.controller.addUpdater(self.updateVariables)
 
@@ -276,6 +304,9 @@ class Header(tk.Frame):
     def setMessaging(self):
         self.setFrame("Messaging")
 
+    def setPeerToPeer(self):
+        self.setFrame("PeerToPeer")
+
     def loginImpossible(self):
         messagebox.showwarning(message="There is no account to log in to.")
 
@@ -289,12 +320,15 @@ class Header(tk.Frame):
         if not self.controller.pgpManager.userKey:
             self.loginButton.configure(command=self.loginImpossible)
             self.messagingButton.configure(command=self.messageNotRegistered)
+            self.peerToPeerButton.configure(command=self.messageNotRegistered)
         elif not self.controller.pgpManager.userPassword:
             self.messagingButton.configure(command=self.messageLoggedOut)
+            self.peerToPeerButton.configure(command=self.messageLoggedOut)
             self.loginButton.configure(command=self.setLogin)
         else:
             self.messagingButton.configure(command=self.setMessaging)
             self.loginButton.configure(command=self.setLogin)
+            self.peerToPeerButton.configure(command=self.setPeerToPeer)
 
 
 class StatusBar(tk.Frame):
@@ -624,6 +658,144 @@ class Messaging(tk.Frame):
         self.contactsFrame.grid(column=0, row=1, sticky=NSEW)
         self.convertFrame.grid(column=1, row=1, sticky=NSEW)
         self.columnconfigure(1, pad=5)
+
+
+class DirectMessage(tk.Frame):
+    def __init__(self, parent: "PeerToPeer", controller: PGPApp, client: Client):
+        super().__init__(parent)
+        self.controller = controller
+        self.client = client
+        self.messageCounter = 0
+        self.userLabel = ttk.Label(self, text=self.client[0])
+        self.windowText = tk.Text(self)
+        self.windowScroll = ttk.Scrollbar(
+            self, orient="vertical", command=self.windowText.yview
+        )
+        self.windowText["yscrollcommand"] = self.windowScroll.set
+        self.windowText.configure(state="disabled", width=40, height=30)
+        self.messageEntry = ttk.Entry(self)
+        self.messageEntry.bind("<Return>", self.sendMessage)
+        # place widgets
+        self.userLabel.grid(row=0, column=0, columnspan=2)
+        self.windowText.grid(row=1, column=0)
+        self.windowScroll.grid(row=1, column=1, sticky=NSEW)
+        self.messageEntry.grid(row=2, column=0, columnspan=2, sticky=NSEW)
+
+    def addMessage(self, message: Message):
+        messageFrame = tk.Frame(self)
+        fromWho = ttk.Label(messageFrame, text=message[0][0] + ":")
+        text = ttk.Label(messageFrame, text=message[1])
+        timestamp = ttk.Label(messageFrame, text=" | " + message[2].strftime("%H:%M"))
+        # place widgets
+        fromWho.grid(column=0, row=0)
+        text.grid(column=1, row=0)
+        timestamp.grid(column=2, row=0)
+        self.messageCounter += 1
+        self.windowText.window_create(f"{self.messageCounter}.0", window=messageFrame)
+        self.windowText.configure(state="normal")
+        self.windowText.insert(f"{self.messageCounter}.end", "\n")
+        self.windowText.configure(state="disabled")
+
+    def sendMessage(self, *_):
+        text = self.messageEntry.get()
+        if text:
+            self.messageEntry.delete(0, END)
+            self.controller.p2pClient.sendMessage(
+                text, (self.client[2], self.client[3])
+            )
+            self.addMessage((("you", "you", "localhost", 0), text, dt.datetime.now()))
+
+
+class DMHome(tk.Frame):
+    def __init__(self, parent: "PeerToPeer", controller: PGPApp):
+        super().__init__(parent)
+        self.parent = parent
+        self.controller = controller
+        self.online = []
+        # add widgets
+        self.onlineListBox = tk.Listbox(self)
+        self.onlineListBoxScrollBar = ttk.Scrollbar(
+            self, orient="vertical", command=self.onlineListBox.yview
+        )
+        self.onlineListBox["yscrollcommand"] = self.onlineListBoxScrollBar.set
+        self.onlineListBox.bind("<<ListboxSelect>>", self.onSelect)
+        self.addChatButton = ttk.Button(self, text="Add chat", command=self.addChat)
+        self.addChatButton.config(state="disabled")
+        self.refreshButton = ttk.Button(self, text="Refresh", command=self.getOnline)
+
+        # place widgets
+        self.onlineListBox.grid(row=0, column=0, columnspan=2, sticky=NSEW)
+        self.onlineListBoxScrollBar.grid(row=0, column=2, sticky=NSEW)
+        self.addChatButton.grid(row=1, column=0, sticky=NSEW)
+        self.refreshButton.grid(row=1, column=1, columnspan=2, sticky=NSEW)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+    def getOnline(self):
+        if self.controller.p2pClient.registered.is_set():
+            self.online = self.controller.p2pClient.getClients()
+            self.onlineListBox.delete(0, END)
+            for name in [client[0] for client in self.online]:
+                self.onlineListBox.insert(END, name)
+        else:
+            messagebox.showerror(message="server is offline")
+
+    def onSelect(self, *_):
+        res = self.onlineListBox.curselection()
+        if res:
+            pos = res[0]
+            if self.online[pos][1] in self.parent.dms:
+                self.addChatButton.config(state="disabled")
+            else:
+                self.addChatButton.config(state="normal")
+
+    def addChat(self):
+        id = self.onlineListBox.curselection()[0]
+        self.parent.addDM(self.online[id])
+
+
+class PeerToPeer(ttk.Notebook):
+    def __init__(self, parent: PGPApp, controller: PGPApp):
+        super().__init__(parent)
+        self.controller = controller
+        self.dmHome = DMHome(self, controller)
+        self.add(self.dmHome, text="Home")
+        self.dms: dict[str, DirectMessage] = {}
+        self.handleMessagesThread = threading.Thread(target=self.handleMessages)
+        self.handleMessagesThread.start()
+
+    def addDM(self, client: Client):
+        if self.controller.pgpManager.contacts:
+            fingerprints = self.controller.pgpManager.contacts.fingerprints()
+            if client[1] in fingerprints:
+                self.dms[client[1]] = DirectMessage(self, self.controller, client)
+                self.add(self.dms[client[1]], text=client[0])
+            else:
+                messagebox.showerror(
+                    message="Registering new contacts over the internet not yet supported"
+                )  # TODO handle registering contacts over internet
+        else:
+            messagebox.showerror(
+                message="Registering new contacts over the internet not yet supported"
+            )  # TODO handle registering contacts over internet
+
+    def handleMessages(self):
+        while not self.controller.stop.is_set():
+            messages = self.controller.p2pClient.consumeMessages()
+            for message in messages:
+                f = message[0][1]
+                if f in self.dms:
+                    self.dms[f].addMessage(message)
+                elif (
+                    self.controller.pgpManager.contacts
+                    and f in self.controller.pgpManager.contacts.fingerprints()
+                ):
+                    self.addDM(message[0])  # pyright: ignore # this is always true i just can't prove it to pyright
+                    self.dms[f].addMessage(message)  # pyright: ignore
+                else:
+                    pass  # TODO handle messages not from contacts
+            else:
+                pass  # TODO handle messages from unknown addresses
 
 
 app = PGPApp()
