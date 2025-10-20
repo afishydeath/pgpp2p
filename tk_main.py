@@ -713,11 +713,9 @@ class DirectMessage(tk.Frame):
         ciphertext = message[1]
         cleartext = self.controller.pgpManager.decrypt(ciphertext)
         verified = self.controller.pgpManager.verify(contact, cleartext)
-        if verified:
-            messagebox.showinfo(message="Signature was verified for contact.")
-        else:
+        if not verified:
             messagebox.showwarning("Signature was unable to be verified.")
-        self.addMessage((message[0], str(cleartext), message[2]))
+        self.addMessage((message[0], str(cleartext.message), message[2]))
 
     def sendMessage(self, *_):
         text = self.messageEntry.get()
@@ -824,7 +822,7 @@ class PeerToPeer(ttk.Notebook):
                     pass  # TODO handle messages not from contacts
             else:
                 pass  # TODO handle messages from unknown addresses
-            self.after(3000, self.handleMessages)
+        self.after(3000, self.handleMessages)
 
 
 app = PGPApp()
