@@ -1,5 +1,21 @@
 # PGP Peer to Peer App
 
+## About
+
+### What
+
+The purpose of this project is to create a peer to peer encrypted messaging service over the internet.
+
+### How
+
+#### Peer to peer communication
+
+The peer to peer communication uses the combination of a public server with a known IP to register online clients, and client programs which can collect the IP of other clients to message peer to peer. This is able to work even with NAT translation, through a process called UDP hole punching. A summary of this is: A client sends a message to the server, creating a NAT translation, the server stores the "from" IP and port, created by the NAT translation, and shares this with other clients, a client uses the stored IP and port, and this allows two clients to communicate without reaching out "first", which is essentially disabled by NAT translation.
+
+#### Encryption
+
+Each client creates their own PGP key, with their username and a password to encrypt it. This key consists of a "private" and "public" pair. The public key is used by other clients to encrypt messages intended for the user, and to verify signatures from the user. The private key is used to decrypt messages to the user, and to sign messages from the user. This type of system (A public/private key system) allows for both integrity; the messages are signed, so you know the message comes from the sender, and also security; the messages cannot be decrypted without your private key.
+
 ## Installation
 
 > Warning, due to the PGP library we use, any Python version newer than `3.12.x` will break our app.
