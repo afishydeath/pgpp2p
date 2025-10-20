@@ -1,2 +1,2 @@
-*.asc
-/__pycache__
+**.asc
+__pycache__/
