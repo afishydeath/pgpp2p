@@ -98,7 +98,7 @@ class P2PClient:
         self.recievedMessagesLock.release()
 
     def consumeMessages(self) -> list[Message]:
-        if self.messageWaiting.wait(3.0):
+        if self.messageWaiting.is_set():
             self.recievedMessagesLock.acquire()
             out = self.recievedMessages
             self.recievedMessages = []
@@ -115,7 +115,7 @@ class P2PClient:
     def recvLoop(self):
         while not self.quit.is_set():
             try:
-                result, fromAddress = self.sock.recvfrom(1024)
+                result, fromAddress = self.sock.recvfrom(4096)
                 result = str(result, "utf-8").strip().split("\n")
                 print(result)
                 match result[0]:

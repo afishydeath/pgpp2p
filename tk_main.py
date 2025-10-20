@@ -808,22 +808,23 @@ class PeerToPeer(ttk.Notebook):
             )  # TODO handle registering contacts over internet
 
     def handleMessages(self):
-        messages = self.controller.p2pClient.consumeMessages()
-        for message in messages:
-            f = message[0][1]
-            if f in self.dms:
-                self.dms[f].recvMessage(message)
-            elif (
-                self.controller.pgpManager.contacts
-                and f in self.controller.pgpManager.contacts.fingerprints()
-            ):
-                self.addDM(message[0])  # pyright: ignore # this is always true i just can't prove it to pyright
-                self.dms[f].recvMessage(message)  # pyright: ignore
+        if self.controller.pgpManager.userPassword:
+            messages = self.controller.p2pClient.consumeMessages()
+            for message in messages:
+                f = message[0][1]
+                if f in self.dms:
+                    self.dms[f].recvMessage(message)
+                elif (
+                    self.controller.pgpManager.contacts
+                    and f in self.controller.pgpManager.contacts.fingerprints()
+                ):
+                    self.addDM(message[0])  # pyright: ignore # this is always true i just can't prove it to pyright
+                    self.dms[f].recvMessage(message)  # pyright: ignore
+                else:
+                    pass  # TODO handle messages not from contacts
             else:
-                pass  # TODO handle messages not from contacts
-        else:
-            pass  # TODO handle messages from unknown addresses
-        self.after(3000, self.handleMessages)
+                pass  # TODO handle messages from unknown addresses
+            self.after(3000, self.handleMessages)
 
 
 app = PGPApp()
