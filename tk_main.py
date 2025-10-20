@@ -579,7 +579,7 @@ class Convert(tk.Frame):
         self.cleartextUploadButton = ttk.Button(
             self, text="Upload", command=self.uploadClear
         )
-        self.cleartextText = tk.Text(self, width=64, height=10)
+        self.cleartextText = tk.Text(self, width=64, height=5)
         self.cleartextScroll = ttk.Scrollbar(self, command=self.cleartextText.yview)
         self.cleartextText["yscrollcommand"] = self.cleartextScroll.set
         self.cleartextDownloadButton = ttk.Button(
@@ -589,7 +589,7 @@ class Convert(tk.Frame):
         self.ciphertextUploadButton = ttk.Button(
             self, text="Upload", command=self.uploadCipher
         )
-        self.ciphertextText = tk.Text(self, width=64, height=30)
+        self.ciphertextText = tk.Text(self, width=64, height=10)
         self.ciphertextScroll = ttk.Scrollbar(self, command=self.ciphertextText.yview)
         self.ciphertextText["yscrollcommand"] = self.ciphertextScroll.set
         self.ciphertextDownloadButton = ttk.Button(
