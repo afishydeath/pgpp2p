@@ -15,13 +15,18 @@ from pgpy.pgp import PGPDecryptionError
 from os import path
 import os
 import sys
-from client import Client, Message, P2PClient
+from client import Client, Message, P2PClient, Address
 
 
 if not sys.warnoptions:
     import warnings
 
     warnings.simplefilter("ignore")
+
+if len(sys.argv) == 3:
+    SERVER: Address = (sys.argv[1], int(sys.argv[2]))
+else:
+    SERVER: Address = ("localhost", 33333)
 
 
 class PGPManager:
@@ -175,7 +180,7 @@ class PGPApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.pgpManager = PGPManager(self)
-        self.p2pClient = P2PClient()
+        self.p2pClient = P2PClient(SERVER)
         self.updaters = [self.clientUpdate]
         self.stop = threading.Event()
         # establish frames

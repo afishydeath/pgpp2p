@@ -13,9 +13,10 @@ Message = tuple[Client | Address, Content, dt.datetime]
 
 
 class P2PClient:
-    SERVER = ("localhost", 33333)
+    # SERVER = ("localhost", 33333)
 
-    def __init__(self):
+    def __init__(self, server: Address = ("localhost", 33333)):
+        self.SERVER = server
         self.name = None
         self.fingerprint = None
         self.quit = threading.Event()
@@ -47,7 +48,9 @@ class P2PClient:
         elif not self.registered.is_set():
             self.register()
 
-    def send(self, what: str, to: Address = SERVER):
+    def send(self, what: str, to: Address | None = None):
+        if not to:
+            to = self.SERVER
         self.sock.sendto(bytes(what, "utf-8"), to)
 
     def sendMessage(self, what: str, to: Address):
@@ -75,12 +78,6 @@ class P2PClient:
             if (client[2], client[3]) == address:
                 return client
         return None
-
-    # def getClientByName(self, name: str) -> Client | None:
-    #     for client in self.clients:
-    #         if client[0] == name:
-    #             return client
-    #     return None
 
     def processMessage(self, message: str, fromAddress: Address):
         ack, message = message.split("\n", 1)
