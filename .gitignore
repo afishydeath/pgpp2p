@@ -1,2 +1,2 @@
-./test
 *.asc
+__pycache__
