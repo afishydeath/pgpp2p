@@ -166,6 +166,11 @@ class PGPManager:
         message = contact.encrypt(message)
         return message
 
+    def encryptForFingerprint(self, fingerprint: str, cleartext: str):
+        assert self.contacts
+        with self.contacts.key(fingerprint) as k:
+            return self.encryptFor(k, cleartext)
+
     def decrypt(self, ciphertext: str) -> PGPMessage:
         message = PGPMessage.from_blob(ciphertext)
         assert self.userKey
@@ -703,12 +708,26 @@ class DirectMessage(tk.Frame):
         self.windowText.insert(f"{self.messageCounter}.end", "\n")
         self.windowText.configure(state="disabled")
 
+    def recvMessage(self, message: Message):
+        contact = self.controller.pgpManager.getContact(message[0][0])
+        ciphertext = message[1]
+        cleartext = self.controller.pgpManager.decrypt(ciphertext)
+        verified = self.controller.pgpManager.verify(contact, cleartext)
+        if verified:
+            messagebox.showinfo(message="Signature was verified for contact.")
+        else:
+            messagebox.showwarning("Signature was unable to be verified.")
+        self.addMessage((message[0], str(cleartext), message[2]))
+
     def sendMessage(self, *_):
         text = self.messageEntry.get()
         if text:
             self.messageEntry.delete(0, END)
+            encText = self.controller.pgpManager.encryptForFingerprint(
+                self.client[1], text
+            )
             self.controller.p2pClient.sendMessage(
-                text, (self.client[2], self.client[3])
+                str(encText), (self.client[2], self.client[3])
             )
             self.addMessage((("you", "you", "localhost", 0), text, dt.datetime.now()))
 
@@ -770,13 +789,13 @@ class PeerToPeer(ttk.Notebook):
         self.dmHome = DMHome(self, controller)
         self.add(self.dmHome, text="Home")
         self.dms: dict[str, DirectMessage] = {}
-        self.handleMessagesThread = threading.Thread(target=self.handleMessages)
-        self.handleMessagesThread.start()
+        self.after(3000, self.handleMessages)
 
     def addDM(self, client: Client):
         if self.controller.pgpManager.contacts:
             fingerprints = self.controller.pgpManager.contacts.fingerprints()
             if client[1] in fingerprints:
+                print(client)
                 self.dms[client[1]] = DirectMessage(self, self.controller, client)
                 self.add(self.dms[client[1]], text=client[0])
             else:
@@ -789,23 +808,22 @@ class PeerToPeer(ttk.Notebook):
             )  # TODO handle registering contacts over internet
 
     def handleMessages(self):
-        while not self.controller.stop.is_set():
-            messages = self.controller.p2pClient.consumeMessages()
-            for message in messages:
-                # print(message)
-                f = message[0][1]
-                if f in self.dms:
-                    self.dms[f].addMessage(message)
-                elif (
-                    self.controller.pgpManager.contacts
-                    and f in self.controller.pgpManager.contacts.fingerprints()
-                ):
-                    self.addDM(message[0])  # pyright: ignore # this is always true i just can't prove it to pyright
-                    self.dms[f].addMessage(message)  # pyright: ignore
-                else:
-                    pass  # TODO handle messages not from contacts
+        messages = self.controller.p2pClient.consumeMessages()
+        for message in messages:
+            f = message[0][1]
+            if f in self.dms:
+                self.dms[f].recvMessage(message)
+            elif (
+                self.controller.pgpManager.contacts
+                and f in self.controller.pgpManager.contacts.fingerprints()
+            ):
+                self.addDM(message[0])  # pyright: ignore # this is always true i just can't prove it to pyright
+                self.dms[f].recvMessage(message)  # pyright: ignore
             else:
-                pass  # TODO handle messages from unknown addresses
+                pass  # TODO handle messages not from contacts
+        else:
+            pass  # TODO handle messages from unknown addresses
+        self.after(3000, self.handleMessages)
 
 
 app = PGPApp()

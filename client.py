@@ -78,7 +78,7 @@ class P2PClient:
         for client in self.clients:
             if (client[2], client[3]) == address:
                 return client
-        print(client, address)
+        print(self.clients, address)
         return None
 
     def processMessage(self, message: str, fromAddress: Address):
@@ -117,6 +117,7 @@ class P2PClient:
             try:
                 result, fromAddress = self.sock.recvfrom(1024)
                 result = str(result, "utf-8").strip().split("\n")
+                print(result)
                 match result[0]:
                     case "REGISTER_SUCCESS":
                         self.registered.set()

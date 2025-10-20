@@ -40,6 +40,11 @@ class Clients:
             if foundClient:
                 self.clients.remove(foundClient)
 
+    def updateClient(self, client: Client):
+        for p in range(len(self.clients)):
+            if self.clients[p][1] == client[1]:
+                self.clients[p] = client
+
 
 class PGPUDPHandler(socketserver.BaseRequestHandler):
     clients = Clients()
@@ -64,6 +69,8 @@ class PGPUDPHandler(socketserver.BaseRequestHandler):
                 )
                 if client[1] not in [x[1] for x in self.clients.clients]:
                     self.clients.addClient(client)
+                else:
+                    self.clients.updateClient(client)
                 sock.sendto(bytes("REGISTER_SUCCESS", "utf-8"), self.client_address)
             case b"GET_CLIENTS":
                 clients = self.clients.getClients()
