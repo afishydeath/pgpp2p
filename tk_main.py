@@ -12,7 +12,6 @@ from pgpy.constants import (
     CompressionAlgorithm,
 )
 from pgpy.pgp import PGPDecryptionError
-from os import path
 import os
 import sys
 from client import Client, Message, P2PClient, Address
@@ -44,7 +43,7 @@ class PGPManager:
         self.loadContacts()
 
     def isRegistered(self) -> bool:
-        return path.exists(self.USER_KEY_PATH) and path.isfile(self.USER_KEY_PATH)
+        return os.path.exists(self.USER_KEY_PATH) and os.path.isfile(self.USER_KEY_PATH)
 
     def loadKey(self) -> PGPKey:
         res = PGPKey.from_file(self.USER_KEY_PATH)
@@ -109,10 +108,13 @@ class PGPManager:
 
     def loadContacts(self):
         # load contact keys from dir
-        if os.listdir(self.CONTACT_PATH):
-            self.contacts = PGPKeyring()
-            for f in os.listdir(self.CONTACT_PATH):
-                self.contacts.load(self.CONTACT_PATH + f)
+        if os.path.exists(self.CONTACT_PATH):
+            if os.listdir(self.CONTACT_PATH):
+                self.contacts = PGPKeyring()
+                for f in os.listdir(self.CONTACT_PATH):
+                    self.contacts.load(self.CONTACT_PATH + f)
+        else:
+            os.makedirs(self.CONTACT_PATH)
 
     def saveContacts(self):
         # save contact keys to dir
