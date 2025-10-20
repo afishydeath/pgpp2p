@@ -1,12 +1,16 @@
 import socketserver
 import threading
 from copy import deepcopy
+import sys
 
 Name, Fingerprint, Ip = str, str, str
 Port = int
 Client = tuple[Name, Fingerprint, Ip, Port]
-IpPort = tuple[Ip, Port]
-SERVER = ("localhost", 33333)
+Address = tuple[Ip, Port]
+if len(sys.argv) == 3:
+    SERVER: Address = (sys.argv[1], int(sys.argv[2]))
+else:
+    SERVER: Address = ("localhost", 33333)
 
 
 class Clients:
@@ -26,7 +30,7 @@ class Clients:
             outList = deepcopy(self.clients)
         return outList
 
-    def removeClient(self, toRemove: IpPort):
+    def removeClient(self, toRemove: Address):
         with self.CLIENT_LOCK:
             foundClient = None
             for client in self.clients:
