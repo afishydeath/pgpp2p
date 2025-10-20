@@ -67,6 +67,7 @@ class P2PClient:
 
     def parseClients(self, lines: list[str]):
         self.clients = []
+        print(lines)
         for i in range(0, len(lines), 4):
             client = [lines[i + x][1:-1] for x in range(3)] + [int(lines[i + 3])]
             self.clients.append(client)
@@ -77,6 +78,7 @@ class P2PClient:
         for client in self.clients:
             if (client[2], client[3]) == address:
                 return client
+        print(client, address)
         return None
 
     def processMessage(self, message: str, fromAddress: Address):

@@ -742,8 +742,10 @@ class DMHome(tk.Frame):
         if self.controller.p2pClient.registered.is_set():
             self.online = self.controller.p2pClient.getClients()
             self.onlineListBox.delete(0, END)
-            for name in [client[0] for client in self.online]:
-                self.onlineListBox.insert(END, name)
+            for client in self.online:
+                if client[1] in self.parent.dms:
+                    self.parent.dms[client[1]].client = client
+                self.onlineListBox.insert(END, client[0])
         else:
             messagebox.showerror(message="server is offline")
 
@@ -790,6 +792,7 @@ class PeerToPeer(ttk.Notebook):
         while not self.controller.stop.is_set():
             messages = self.controller.p2pClient.consumeMessages()
             for message in messages:
+                # print(message)
                 f = message[0][1]
                 if f in self.dms:
                     self.dms[f].addMessage(message)
