@@ -793,7 +793,6 @@ class PeerToPeer(ttk.Notebook):
         if self.controller.pgpManager.contacts:
             fingerprints = self.controller.pgpManager.contacts.fingerprints()
             if client[1] in fingerprints:
-                print(client)
                 self.dms[client[1]] = DirectMessage(self, self.controller, client)
                 self.add(self.dms[client[1]], text=client[0])
             else:

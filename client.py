@@ -67,7 +67,6 @@ class P2PClient:
 
     def parseClients(self, lines: list[str]):
         self.clients = []
-        print(lines)
         for i in range(0, len(lines), 4):
             client = [lines[i + x][1:-1] for x in range(3)] + [int(lines[i + 3])]
             self.clients.append(client)
@@ -78,7 +77,6 @@ class P2PClient:
         for client in self.clients:
             if (client[2], client[3]) == address:
                 return client
-        print(self.clients, address)
         return None
 
     def processMessage(self, message: str, fromAddress: Address):
@@ -115,9 +113,8 @@ class P2PClient:
     def recvLoop(self):
         while not self.quit.is_set():
             try:
-                result, fromAddress = self.sock.recvfrom(4096)
+                result, fromAddress = self.sock.recvfrom(1 << 12)
                 result = str(result, "utf-8").strip().split("\n")
-                print(result)
                 match result[0]:
                     case "REGISTER_SUCCESS":
                         self.registered.set()
